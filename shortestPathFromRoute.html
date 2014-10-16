@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html>
+  <head>
+  <title></title>
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no" />
+    <style type="text/css">
+      html { height: 100% }
+      body { height: 100%; margin: 0; padding: 0 }
+      #map_canvas { height: 100% }
+    </style>
+    <script type="text/javascript" src="http://maps.googleapis.com/maps/api/js?key=<your api key>&sensor=false"></script>
+     <script type="text/javascript" src="https://maps.googleapis.com/maps/api/js?sensor=false&libraries=places"></script>
+    <script type="text/javascript">
+        var map;
+        var route_path;
+        var mindist;
+        var geocoder;
+        var marker1;
+        var marker2;
+        var marker3;
+        var bound_fit;
+        var marker4;
+        var directionsService;
+        var directionsRenderer;
+        function initialize() {
+            directionsService = new google.maps.DirectionsService();
+            directionsRenderer = new google.maps.DirectionsRenderer();
+            directionsService1 = new google.maps.DirectionsService();
+            directionsRenderer1 = new google.maps.DirectionsRenderer();
+            bound_fit = new google.maps.LatLngBounds();
+            marker1 = new google.maps.Marker();
+            marker2 = new google.maps.Marker();
+            marker3 = new google.maps.Marker();
+            marker4 = new google.maps.Marker();
+            geocoder = new google.maps.Geocoder();
+            var mapOptions = {
+                center: new google.maps.LatLng(42.886, -78.878),
+                zoom: 10,
+                mapTypeId: google.maps.MapTypeId.ROADMAP
+            };
+            map = new google.maps.Map(document.getElementById("map_canvas"),
+            mapOptions);
+            directionsRenderer.setMap(map);
+
+            //autocomplete
+
+            input1 = document.getElementById('place1');
+            input2 = document.getElementById('place2');
+            var options = {
+                types: [],
+                componentRestrictions: {country: 'us' }
+            };
+            
+            var autocomplete1 = new google.maps.places.Autocomplete(input1, options);
+            var autocomplete2 = new google.maps.places.Autocomplete(input2, options);
+            var autocomplete3 = new google.maps.places.Autocomplete(document.getElementById('find_place'), options);
+            google.maps.event.addListener(autocomplete1, 'place_changed', function () {
+                document.getElementById('name1').value = autocomplete1.getPlace().name;
+            });
+            google.maps.event.addListener(autocomplete2, 'place_changed', function () {
+                document.getElementById('name2').value = autocomplete2.getPlace().name;
+            });
+        }
+
+        function getPlace() {
+            var place1 = document.getElementById("place1").value;
+            var place2 = document.getElementById("place2").value;
+            var result1;
+            var result2;
+
+            geocoder.geocode({ 'address': place2 }, function (result1, status) {
+                if (status == google.maps.GeocoderStatus.OK) {
+                    /*marker1 = new google.maps.Marker({
+                    map: map,
+                    position: result[0].geometry.location
+                    });*/
+                    addMarker(marker1, map, result1[0].geometry.location);
+                    bound_fit.extend(result1[0].geometry.location);
+                    document.getElementById("latlng2").value = result1[0].geometry.location.lat() + ", " + result1[0].geometry.location.lng();
+                }
+                else {
+                    alert("Geocoding was not successfull: " + status);
+                }
+            });
+
+            geocoder.geocode({ 'address': place1 }, function (result2, status) {
+                if (status == google.maps.GeocoderStatus.OK) {
+                    map.setCenter(result2[0].geometry.location);
+                    addMarker(marker2, map, result2[0].geometry.location);
+                    bound_fit.extend(result2[0].geometry.location);
+                    document.getElementById("latlng1").value = result2[0].geometry.location.lat() + ", " + result2[0].geometry.location.lng();
+                }
+                else {
+                    alert("Geocoding was not successfull: " + status);
+                }
+            });
+            var request = {
+                origin: place1,
+                destination: place2,
+                travelMode: google.maps.TravelMode.DRIVING
+            };
+
+            
+            directionsService.route(request, function (result, status) {
+                if (status == google.maps.DirectionsStatus.OK) {
+                    directionsRenderer.setDirections(result);
+                    document.getElementById('pathlength').value = result.routes[0].overview_path.length/10;
+                    route_path = result.routes[0].overview_path;
+                    document.getElementById('path1').value = route_path;
+                }
+            });
+            
+
+            map.fitBounds(bound_fit);
+            map.setZoom(map.getZoom() + 3);
+
+        }
+        function findDistance() {
+            var find_place = document.getElementById('find_place').value;
+            geocoder.geocode({ 'address': find_place }, function (result, status) {
+                mindist = google.maps.geometry.spherical.computeDistanceBetween(route_path[0], result[0].geometry.location);
+                var mini = 0;
+                for (i = 0; i < route_path.length; i++) {
+                    if (mindist >= google.maps.geometry.spherical.computeDistanceBetween(route_path[i], result[0].geometry.location)) {
+                        mindist = google.maps.geometry.spherical.computeDistanceBetween(route_path[i], result[0].geometry.location);
+                        mini = i;
+                    }
+                }
+
+
+                addMarker(marker3, map, route_path[mini]);
+                addMarker(marker4, map, result[0].geometry.location);
+                
+                document.getElementById('distance').value = mindist/1000;
+
+
+                var request = {
+                origin: result[0].geometry.location,
+                destination: route_path[mini],
+                travelMode: google.maps.TravelMode.DRIVING
+            };
+                directionsService.route(request, function (result, status) {
+                if (status == google.maps.DirectionsStatus.OK) {
+                    directionsRenderer.setDirections(result);
+                }
+            });
+            });
+
+	      
+	       
+
+        }
+        function addMarker(marker,map1,position1) {
+            marker.setMap(map1);
+            marker.setPosition(position1);
+            }
+
+     /*  function generateNewMap() {
+           var marker = new google.maps.Marker({
+               map: map,
+               position: new google.maps.LatLng(-34.397, 150.644)
+           });
+       }*/
+    </script>
+  </head>
+  <body onload="initialize()">
+    
+    <div id="map_canvas" style="width:50%; height:50%"></div>
+    <table>
+    
+    <tr><td>From</td>
+        <td><input type="text" id="place1" /></td>
+        <td>Lat/Long : </td><td><input type="text" id="latlng1" /></td>
+        <td>Name : </td><td><input type="text" id="name1" /></td>
+        </tr>
+    <tr><td>To</td>
+        <td><input type="text" id="place2" /></td>
+        <td>Lat/Long : </td><td><input type="text" id="latlng2" /></td>
+        <td>Name : </td><td><input type="text" id="name2" /></td>
+        </tr>
+        <tr><td>Path length : </td><td><input type="text" style="width: 50px;" id="pathlength" value = "0.0" disabled/> Kms</td></tr>
+        <tr><td>Path : </td><td><textarea rows="9" cols="100" id="path1"></textarea></td><td>Find Place : </td><td><input type="text" id="find_place" /></td></tr>
+        
+
+    <tr><td><input type="button" value="Locate" id="new_map" onclick="getPlace();"/></td><td><input type="button" value="Find location" onclick="findDistance()"/></td>
+    <td>Distance min : </td><td><input type="text" id="distance"/> Kms</td>
+    </tr>
+    </table>
+  </body>
+</html>
